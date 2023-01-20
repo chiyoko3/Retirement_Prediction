@@ -6,12 +6,12 @@
 #
 # > .scikit\Scripts\activate.bat    ← 新しい仮想環境「.scikit」を起動する
 #
-# (.scikit) > python -m pip install -r requirements.txt   ← ライブラリの一括インストール
+# (.scikit) > python -m pip install -r requirements_scikit.txt   ← ライブラリの一括インストール
 #
 # ※一括インストールは時間がかかりますので(10分～？）休み時間の前などに実行するとよいでしょう
 #
 #
-# requirements_scikit.txt の内容(requirements.txtに書き換え済み)
+# requirements_scikit.txt の内容
 #   streamlit               ← 毎度、おなじみ
 #   typing_extensions       ← これがないとエラーが出ることがあるので一応
 #   numpy                   ← 毎度、おなじみ
@@ -23,7 +23,7 @@
 #   seaborn                 ← こちらもメジャーなグラフ描画ライブラリ
 #
 #
-# (.scikit) > streamlit run stapp_retire.py    ← Webアプリ（stapp_retire.py）を起動
+# (.tfflow) > streamlit run stapp_retire.py    ← Webアプリ（stapp_retire.py）を起動
 
 
 """ Streamlitによる退職予測AIシステムの開発
@@ -76,7 +76,6 @@ def st_display_table(df: pd.DataFrame):
     ----------
     df : pd.DataFrame
         対象のデータフレーム
-
     Returns
     -------
     なし
@@ -100,7 +99,6 @@ def st_display_graph(df: pd.DataFrame, x_col : str):
         対象のデータフレーム
     x_col : str
         対象の列名（グラフのx軸）
-
     Returns
     -------
     なし
@@ -130,10 +128,9 @@ def ml_dtree(
         目的変数の列
     depth : int
         決定木の深さ
-
     Returns
     -------
-    list: [学習済みモデル, 予測値, 正解率]
+    list: [学習済みモデル, 予測値, 正解率, 再現率, 適合率]
     """
 
     # 決定木モデルの生成（オプション:木の深さ）
@@ -161,7 +158,6 @@ def st_display_dtree(clf, features):
         学習済みモデル
     features :
         説明変数の列名
-
     Returns
     -------
     なし
@@ -185,7 +181,7 @@ def main():
     """
 
     # stのタイトル表示
-    st.title("退職予測AI\n（Maschine Learning)")
+    st.title("退職予測AI\n（Machine Learning)")
 
     # サイドメニューの設定
     activities = ["データ確認", "要約統計量", "グラフ表示", "学習と検証", "About"]
@@ -235,6 +231,7 @@ def main():
             df = copy.deepcopy(st.session_state.df)
 
             # 要約統計量の表示
+            st_display_table(df.describe())
 
             
         else:
@@ -249,7 +246,12 @@ def main():
             # セッションステートに退避していたデータフレームを復元
             df = copy.deepcopy(st.session_state.df)
 
+            # グラフのx軸を選択するセレクトボックスの設定
+            x_list = df.columns.tolist()
+            choice_x = st.sidebar.selectbox("グラフのx軸", x_list)
+
             # グラフの表示
+            st_display_graph(df, choice_x)
 
             
         else:
@@ -258,28 +260,43 @@ def main():
 
     if choice == '学習と検証':
 
+        depth = st.sidebar.number_input("決定木の深さ(サーバの負荷軽減の為 Max=3)", 1, 3)
+
         if 'df' in st.session_state:
 
             # セッションステートに退避していたデータフレームを復元
             df = copy.deepcopy(st.session_state.df)
 
-            # 説明変数と目的変数の設定
+            # 説明変数と目的変数の設定（訓練用）
             train_X = df.drop("退職", axis=1)   # 退職列以外を説明変数にセット
             train_Y = df["退職"]                # 退職列を目的変数にセット
 
             # 決定木による予測
-            clf, train_pred, train_scores = ml_dtree(train_X, train_Y, 2)
+            clf, train_pred, train_scores = ml_dtree(train_X, train_Y, depth)
 
             # 正解率を出力
-
+            st.caption('決定木の予測')
+            st.subheader(f"正解率：{train_scores}")
 
             # 決定木のツリーを出力
-            
+            st.caption('')
+            st.caption('決定木の可視化')
+            st_display_dtree(clf, train_X.columns)
+
 
         else:
             st.subheader('訓練用データをアップロードしてください')
+
+
+    if choice == 'About':
+        image = Image.open('logo_ncc.png')
+        st.image(image)
+
+        #components.html("""""")
+        st.markdown("Built by chiyoko noda")
+        st.text("Version 1.0")
+        st.markdown("For More Information -> check out (https://www.ncc-net.ac.jp/)")
         
 
 if __name__ == "__main__":
     main()
-
